@@ -1,0 +1,336 @@
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+from scipy.stats import stats
+import scipy as scipy
+import statsmodels.stats as stats2
+from statsmodels.stats import stattools
+
+
+returns = pd.DataFrame(np.random.normal(1.0, 0.03, (100, 10)))
+prices = returns.cumprod()
+prices.plot()
+plt.title('Randomly-generated Prices')
+plt.xlabel('Time')
+plt.ylabel('Price')
+plt.legend(loc=0);
+#plt.show()
+
+import quandl
+import datetime
+
+# We will look at stock prices over the past year, starting at January 1, 2016
+start = datetime.datetime(2016, 1, 1)
+end = datetime.date.today()
+
+# Let's get Apple stock data; Apple's ticker symbol is AAPL
+# First argument is the series we want, second is the source ("yahoo" for Yahoo! Finance), third is the start date, fourth is the end date
+s = "AAPL"
+
+apple = quandl.get("WIKI/" + s, start_date=start, end_date=end)
+
+type(apple)
+print(apple)
+
+a = "IBM"
+
+IBM = quandl.get("WIKI/" + a, start_date=start, end_date=end)
+
+type(IBM)
+print(IBM)
+
+apple.plot()
+# We still need to add the axis labels and title ourselves
+plt.title(s + " Prices")
+plt.ylabel("Price")
+plt.xlabel("Date");
+plt.show()
+
+
+# We still need to add the axis labels and title ourselves
+plt.title(s + " Prices")
+plt.ylabel("Price")
+plt.xlabel("Date");
+apple["Adj. Close"].plot(grid=True)
+plt.show()
+
+slice_1 = apple["Adj. Close"]
+print("Summary Statistics")
+print(apple.describe())
+
+slice_2 = IBM["Adj. Close"]
+print("Summary Statistics")
+print(IBM.describe())
+
+add_returns = slice_1.diff()[1:]
+mult_returns = slice_1.pct_change()[1:]
+
+plt.title("Multiplicative returns of " + s)
+plt.xlabel("Date")
+plt.ylabel("Percent Returns")
+mult_returns.plot();
+plt.show()
+
+df = pd.DataFrame(slice_1)
+rolling_mean = df.rolling(30).mean()
+rolling_mean.name = "30-day rolling mean"
+
+rolling_mean.plot()
+slice_1.plot()
+plt.title(s + " Price")
+plt.xlabel("Date")
+plt.ylabel("Price")
+plt.legend();
+plt.show()
+
+rolling_std = df.rolling(30).std()
+rolling_std.name = "30-day rolling volatility"
+rolling_std.plot()
+plt.title(rolling_std.name);
+plt.xlabel("Date")
+plt.ylabel("Standard Deviation")
+plt.show()
+
+# Remove the first element because percent change from nothing to something is NaN
+R = slice_1.pct_change()[1:]
+print(R)
+
+R2 = slice_2.pct_change()[1:]
+print(R2)
+
+# Plot a histogram using 20 bins
+plt.hist(R, bins=20)
+plt.xlabel('Return')
+plt.ylabel('Number of Days Observed')
+plt.title('Frequency Distribution of AAPL Returns, 2016');
+plt.show()
+
+plt.hist(R, bins=20, cumulative=True)
+plt.xlabel('Return')
+plt.ylabel('Number of Days Observed')
+plt.title('Cumulative Distribution of AAPL Returns, 2016');
+plt.show()
+
+# Geo mean and correcting for negative numbers
+
+ratios = R + np.ones(len(R))
+R_G = stats.gmean(ratios) - 1
+print('Geometric mean of returns:', R_G)
+
+X = np.sort(R)
+print('X: %s' %R)
+
+mu = np.mean(R)
+print('Mean of X:', mu)
+
+abs_dispersion = [np.abs(mu - X) for x in X]
+MAD = np.sum(abs_dispersion)/len(abs_dispersion)
+print(MAD)
+
+k = 1.25
+dist = k*np.std(R)
+l = [x for x in X if abs(x - mu) <= dist]
+print('Observations within', k, 'stds of mean:', l)
+print('Confirming that', float(len(l))/len(X), '>', 1 - 1/k**2)
+
+xs = np.linspace(-6,6, 300)
+normal = scipy.stats.norm.pdf(xs)
+plt.plot(xs, normal);
+plt.show()
+
+# Generate x-values for which we will plot the distribution
+xs2 = np.linspace(scipy.stats.lognorm.ppf(0.01, .7, loc=-.1), scipy.stats.lognorm.ppf(0.99, .7, loc=-.1), 150)
+
+# Negatively skewed distribution
+lognormal = scipy. stats.lognorm.pdf(xs2, .7)
+plt.plot(xs2, lognormal, label='Skew > 0')
+
+# Positively skewed distribution
+plt.plot(xs2, lognormal[::-1], label='Skew < 0')
+plt.legend();
+plt.show()
+
+print('Skew:', scipy.stats.skew(R))
+print('Mean:', np.mean(R))
+print('Median:', np.median(R))
+print("Excess kurtosis of returns: ", stats.kurtosis(R))
+plt.hist(R, 30)
+plt.show()
+
+#Correlelation Coeffiecient Calcs for random dist
+X = np.random.rand(50)
+Y = 2 * X + np.random.normal(0, 0.1, 50)
+print(np.cov(X, Y)[0, 1])
+
+#covariance and correlation outputs
+X2 = np.random.rand(50)
+Y2 = 2 * X2 + 4
+print('Covariance of X and Y: \n' + str(np.cov(X2, Y2)))
+print('Correlation of X and Y: \n' + str(np.corrcoef(X2, Y2)))
+
+cov_matrix = np.cov(X, Y)
+
+# We need to manually set the degrees of freedom on X to 1, as numpy defaults to 0 for variance
+# This is usually fine, but will result in a slight mismatch as np.cov defaults to 1
+error = cov_matrix[0, 0] - X.var(ddof=1)
+print('error: ' + str(error))
+
+X3 = np.random.rand(50)
+Y3 = np.random.rand(50)
+
+plt.scatter(X3,Y3)
+plt.xlabel('X Value')
+plt.ylabel('Y Value')
+plt.show()
+
+# taking the relevant value from the matrix returned by np.cov
+print('Correlation: ' + str(np.cov(X3,Y3)[0,1]/(np.std(X3)*np.std(Y3))))
+# Let's also use the builtin correlation function
+print('Built-in Correlation: ' + str(np.corrcoef(X3, Y3)[0, 1]))
+
+X4 = np.random.rand(50)
+Y4 = X4 + np.random.normal(0, 0.1, 50)
+
+plt.scatter(X4,Y4)
+plt.xlabel('X Value')
+plt.ylabel('Y Value')
+plt.show()
+
+print('Correlation: ' + str(np.corrcoef(X4, Y4)[0, 1]))
+
+X5 = np.random.rand(50)
+Y5 = X5 + np.random.normal(0, .2, 50)
+
+plt.scatter(X5,Y5)
+plt.xlabel('X Value')
+plt.ylabel('Y Value')
+plt.show()
+
+print('Correlation: ' + str(np.corrcoef(X5, Y5)[0, 1]))
+
+#STILL NEEDS WORK
+#plt.scatter(R,R2)
+#plt.xlabel('AAPLE')
+#plt.ylabel('IBM')
+#plt.title('Stock prices from ' + start + ' to ' + end)
+#plt.show()
+#print("Correlation coefficients")
+#print("IBM and AAPL: ", np.corrcoef(R,R2)[0,1])
+
+X = np.random.rand(50)
+Y = 2 * X + np.random.normal(0, 0.1, 50)
+
+print(np.cov(X, Y)[0, 1])
+
+X = np.random.rand(50)
+Y = np.random.rand(50)
+
+plt.scatter(X,Y)
+plt.xlabel('X Value')
+plt.ylabel('Y Value')
+
+# taking the relevant value from the matrix returned by np.cov
+print('Correlation: ' + str(np.cov(X,Y)[0,1]/(np.std(X)*np.std(Y))))
+# Let's also use the builtin correlation function
+print('Built-in Correlation: ' + str(np.corrcoef(X, Y)[0, 1]))
+
+#I think this issue ere is the time..i think the issue is the time periods are different?
+rolling_correlation = df.rolling(60).corr()
+#plt.plot(rolling_correlation)
+#plt.xlabel('Day')
+#plt.ylabel('60-day Rolling Correlation')
+#plt.show()
+print(rolling_correlation)
+
+
+def bimodal(n):
+    X13 = np.zeros((n))
+    for i in range(n):
+        if np.random.binomial(1, 0.5) == 0:
+            X13[i] = np.random.normal(-5, 1)
+        else:
+            X13[i] = np.random.normal(5, 1)
+    return X13
+
+
+X12 = bimodal(1000)
+
+# Let's see how it looks
+plt.hist(X12, bins=50)
+plt.ylabel('Frequency')
+plt.xlabel('Value')
+plt.show()
+print('mean:', np.mean(X12))
+print('standard deviation:', np.std(X12))
+
+from statsmodels.stats.stattools import jarque_bera
+print(jarque_bera(X12))
+
+
+mu_1 = 0
+mu_2 = 0
+sigma_1 = 1
+sigma_2 = 2
+x = np.linspace(-8, 8, 200)
+y = (1/(sigma_1 * np.sqrt(2 * 3.14159))) * np.exp(-(x - mu_1)*(x - mu_1) / (2 * sigma_1 * sigma_1))
+z = (1/(sigma_2 * np.sqrt(2 * 3.14159))) * np.exp(-(x - mu_2)*(x - mu_2) / (2 * sigma_2 * sigma_2))
+plt.plot(x, y, x, z)
+plt.xlabel('Value')
+plt.ylabel('Probability');
+plt.show()
+
+#y and x stock which makes up portfolio w for predicting their stock returns
+class ContinuousRandomVariable:
+    def __init__(self, a = 0, b = 1):
+        self.variableType = ""
+        self.low = a
+        self.high = b
+        return
+    def draw(self, numberOfSamples):
+        samples = np.random.uniform(self.low, self.high, numberOfSamples)
+        return samples
+
+class NormalRandomVariable(ContinuousRandomVariable):
+    def __init__(self, mean = 0, variance = 1):
+        ContinuousRandomVariable.__init__(self)
+        self.variableType = "Normal"
+        self.mean = mean
+        self.standardDeviation = np.sqrt(variance)
+        return
+    def draw(self, numberOfSamples):
+        samples = np.random.normal(self.mean, self.standardDeviation, numberOfSamples)
+        return samples
+
+Y_initial = 100
+X = NormalRandomVariable(0, 1)
+Y_returns = X.draw(100) # generate 100 daily returns
+Y = pd.Series(np.cumsum(Y_returns), name = 'Y') + Y_initial
+Y.plot()
+plt.xlabel('Time')
+plt.ylabel('Value');
+plt.show()
+
+Z_initial = 50
+Z_returns = X.draw(100)
+Z = pd.Series(np.cumsum(Z_returns), name = 'Z') + Z_initial
+Z.plot()
+plt.xlabel('Time')
+plt.ylabel('Value');
+plt.show()
+
+Y_quantity = 20
+Z_quantity = 50
+Y_weight = Y_quantity/(Y_quantity + Z_quantity)
+Z_weight = 1 - Y_weight
+
+W_initial = Y_weight * Y_initial + Z_weight * Z_initial
+W_returns = Y_weight * Y_returns + Z_weight * Z_returns
+W = pd.Series(np.cumsum(W_returns), name = 'Portfolio') + W_initial
+W.plot()
+plt.xlabel('Time')
+plt.ylabel('Value');
+
+pd.concat([Y, Z, W], axis = 1).plot()
+plt.xlabel('Time')
+plt.ylabel('Value');
+plt.show()
